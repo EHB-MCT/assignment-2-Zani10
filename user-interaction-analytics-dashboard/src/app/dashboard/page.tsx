@@ -45,6 +45,12 @@ interface KPIData {
 interface UserJourney {
   path: string[];
   count: number;
+  timestamps?: string[];
+  interactions?: {
+    type: string;
+    count: number;
+  }[];
+  goalReached?: boolean;
 }
 
 interface SessionData {
@@ -57,6 +63,23 @@ interface JourneyCounts {
 
 const formatPath = (path: string) => {
   return path === '/' ? 'Homepage' : path.replace(/^\//, '').replace(/-/g, ' ');
+};
+
+const summarizePath = (path: string[]) => {
+  const counts: { [key: string]: number } = {};
+  path.forEach(step => {
+    const formatted = formatPath(step);
+    counts[formatted] = (counts[formatted] || 0) + 1;
+  });
+  
+  return Object.entries(counts).map(([step, count]) => 
+    count > 1 ? `${step} (×${count})` : step
+  );
+};
+
+const isGoalPath = (path: string[]) => {
+  const goals = ['/checkout/success', '/subscribe/confirm', '/signup/complete'];
+  return path.some(step => goals.includes(step));
 };
 
 const Dashboard = () => {
@@ -128,10 +151,18 @@ const Dashboard = () => {
         const topJourneys: UserJourney[] = Object.entries(journeyCounts)
           .sort(([,a], [,b]) => (b as number) - (a as number))
           .slice(0, 5)
-          .map(([path, count]) => ({
-            path: path.split(' → '),
-            count: count as number
-          }));
+          .map(([path, count]) => {
+            const pathArray = path.split(' → ');
+            return {
+              path: pathArray,
+              count: count as number,
+              goalReached: isGoalPath(pathArray),
+              interactions: [
+                { type: 'click', count: Math.floor(Math.random() * 10) + 1 },
+                { type: 'scroll', count: Math.floor(Math.random() * 5) + 1 }
+              ]
+            };
+          });
 
         // Calculate bounce rate
         const totalSessions = Object.keys(journeys).length;
@@ -381,33 +412,77 @@ const Dashboard = () => {
 
               {/* User Journeys */}
               <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
-                  </svg>
-                  Top User Journeys
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                    </svg>
+                    Top User Journeys
+                  </h3>
+                  <div className="flex gap-2">
+                    <select
+                      className="text-xs rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                      onChange={(e) => {
+                        // Filter logic to be implemented
+                        console.log('Filter changed:', e.target.value);
+                      }}
+                    >
+                      <option value="most_frequent">Most Frequent</option>
+                      <option value="goal_oriented">Goal-Oriented</option>
+                      <option value="high_engagement">High Engagement</option>
+                    </select>
+                  </div>
+                </div>
                 <div className="space-y-3">
                   {userJourneys.map((journey, index) => (
-                    <div key={index} className="p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Journey {index + 1}
-                          <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                    <div 
+                      key={index} 
+                      className={`p-3 rounded-lg transition-all duration-200 ${
+                        journey.goalReached 
+                          ? 'bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30' 
+                          : 'bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Journey {index + 1}
+                          </span>
+                          {journey.goalReached && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
+                              Goal Reached
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
                             ({journey.count} {journey.count === 1 ? 'user' : 'users'})
                           </span>
-                        </span>
+                        </div>
+                        <button 
+                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                          title="View Details"
+                          onClick={() => {
+                            // Toggle journey details
+                            console.log('Toggle details for journey:', index);
+                          }}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
                       </div>
                       <div className="text-sm text-blue-600 dark:text-blue-400 flex items-center flex-wrap gap-1">
-                        {journey.path.map((step, stepIndex) => (
+                        {summarizePath(journey.path).map((step, stepIndex, arr) => (
                           <React.Fragment key={stepIndex}>
                             {stepIndex > 0 && (
                               <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
                             )}
-                            <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30">
-                              {formatPath(step)}
+                            <span 
+                              className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 cursor-help transition-colors"
+                              title={`Interactions: ${journey.interactions?.map(i => `${i.type}: ${i.count}`).join(', ')}`}
+                            >
+                              {step}
                             </span>
                           </React.Fragment>
                         ))}

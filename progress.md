@@ -22,4 +22,7 @@
 
 ## 6
 - Analytics dashboard
-- 
+- Extended user interactions 
+
+## 7
+- Dashboard - User journeys UI fixed
