@@ -15,5 +15,5 @@ export type UserInteraction = {
   event_target: string;
   page: string;
   timestamp?: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }; 

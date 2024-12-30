@@ -1,7 +1,10 @@
-import { supabase, UserInteraction } from '../../lib/supabaseClient';
+'use client';
+
+import { useEffect } from 'react';
+import { supabase, UserInteraction } from '@/lib/supabaseClient';
 
 // Debounce function to prevent duplicate events
-function debounce<T extends (...args: any[]) => any>(
+function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -46,7 +49,7 @@ export function trackPageView(page: string) {
 }
 
 // Track button clicks
-export function trackButtonClick(buttonName: string, page: string, details?: any) {
+export function trackButtonClick(buttonName: string, page: string, details?: Record<string, unknown>) {
   trackEvent({
     event_type: 'click',
     event_target: buttonName,
@@ -56,21 +59,31 @@ export function trackButtonClick(buttonName: string, page: string, details?: any
 }
 
 // Track form submissions
-export function trackFormSubmission(formName: string, page: string, formData: any) {
-  trackEvent('form_submission', formName, page, formData);
+export function trackFormSubmission(formName: string, page: string, formData: Record<string, unknown>) {
+  trackEvent({
+    event_type: 'form_submission',
+    event_target: formName,
+    page,
+    details: formData,
+  });
 }
 
 // Track scroll depth
 export const trackScrollDepth = debounce((page: string, scrollPercentage: number) => {
   if (scrollPercentage >= 50 && !localStorage.getItem(`scrollTracked_${page}`)) {
-    trackEvent('scroll_depth', '50_percent', page, { scrollPercentage });
+    trackEvent({
+      event_type: 'scroll_depth',
+      event_target: '50_percent',
+      page,
+      details: { scrollPercentage },
+    });
     localStorage.setItem(`scrollTracked_${page}`, 'true');
   }
 }, 500);
 
 // Custom hook for scroll tracking
 export function useScrollTracking(page: string) {
-  React.useEffect(() => {
+  useEffect(() => {
     const handleScroll = () => {
       const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
       const scrollPercentage = (window.scrollY / scrollHeight) * 100;
@@ -83,16 +96,30 @@ export function useScrollTracking(page: string) {
 }
 
 // Track social link clicks
-export function trackSocialClick(platform: string, page: string, details?: any) {
-  trackEvent('social_click', platform, page, details);
+export function trackSocialClick(platform: string, page: string, details?: Record<string, unknown>) {
+  trackEvent({
+    event_type: 'social_click',
+    event_target: platform,
+    page,
+    details,
+  });
 }
 
 // Track blog post views
 export function trackBlogPostView(postId: string, postTitle: string) {
-  trackEvent('blog_view', postId, '/blog', { title: postTitle });
+  trackEvent({
+    event_type: 'blog_view',
+    event_target: postId,
+    page: '/blog',
+    details: { title: postTitle },
+  });
 }
 
 // Track team member profile views
 export function trackTeamMemberView(memberName: string) {
-  trackEvent('team_member_view', memberName, '/team');
+  trackEvent({
+    event_type: 'team_member_view',
+    event_target: memberName,
+    page: '/team',
+  });
 } 

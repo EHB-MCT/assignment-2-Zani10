@@ -17,8 +17,9 @@
 - Extend app with more pages: Team, Careers, FAQ, testimonials
 
 ## 5
-- Supabase integration
+- Supabase table creation
 - Tracking implementation
 
 ## 6
+- Analytics dashboard
 - 
