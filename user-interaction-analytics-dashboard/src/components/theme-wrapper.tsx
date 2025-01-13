@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { ThemeProvider } from 'next-themes';
 import { ThemeToggle } from './theme-toggle';
 import { Transition } from '@headlessui/react';
-import { trackClick } from '@/lib/tracker';
+import { trackClick } from '@/app/utils/tracker';
 
 const navLinks = [
   { href: '/', label: 'Home' },

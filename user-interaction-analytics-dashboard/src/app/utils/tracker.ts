@@ -1,35 +1,58 @@
 'use client';
 
-import { useEffect } from 'react';
-import { supabase, UserInteraction } from '@/lib/supabaseClient';
+import { supabase } from '@/app/utils/supabaseClient';
+import { v4 as uuidv4 } from 'uuid';
 
-// Debounce function to prevent duplicate events
-function debounce<T extends (...args: unknown[]) => unknown>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
+interface EventDetails {
+  [key: string]: string | number | boolean | object | null;
 }
 
-// Main tracking function
-export async function trackEvent(event: Omit<UserInteraction, 'id' | 'timestamp'>) {
-  try {
-    // Log to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Tracking Event:', {
-        ...event,
-        timestamp: new Date().toISOString(),
-      });
-    }
+// Initialize session ID only on the client side
+let sessionId = '';
 
-    const { error } = await supabase.from('user_interactions').insert({
-      ...event,
-      timestamp: new Date().toISOString(),
-    });
+export const initTracker = () => {
+  if (typeof window === 'undefined') return;
+  
+  if (!sessionId) {
+    // Try to get existing session ID from localStorage
+    const existingSessionId = localStorage.getItem('analytics_session_id');
+    if (existingSessionId) {
+      sessionId = existingSessionId;
+    } else {
+      // Create new session ID if none exists
+      sessionId = uuidv4();
+      localStorage.setItem('analytics_session_id', sessionId);
+    }
+  }
+};
+
+export const trackEvent = async (
+  eventType: string,
+  page: string,
+  eventTarget: string,
+  details: EventDetails = {},
+  userId?: string
+) => {
+  if (typeof window === 'undefined') return;
+
+  // Ensure tracker is initialized
+  initTracker();
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUserId = userId || session?.user?.id;
+
+    const { error } = await supabase.from('user_interactions').insert([
+      {
+        user_id: currentUserId,
+        session_id: sessionId,
+        event_type: eventType,
+        page,
+        event_target: eventTarget,
+        details: JSON.stringify(details),
+        timestamp: new Date().toISOString()
+      }
+    ]);
 
     if (error) {
       console.error('Error tracking event:', error);
@@ -37,89 +60,51 @@ export async function trackEvent(event: Omit<UserInteraction, 'id' | 'timestamp'
   } catch (error) {
     console.error('Error tracking event:', error);
   }
-}
+};
 
-// Track page views
-export function trackPageView(page: string) {
-  trackEvent({
-    event_type: 'page_view',
-    event_target: 'page',
-    page,
-  });
-}
+export const trackPageView = (page: string) => {
+  if (typeof window === 'undefined') return;
+  return trackEvent('page_view', page, 'page');
+};
 
-// Track button clicks
-export function trackButtonClick(buttonName: string, page: string, details?: Record<string, unknown>) {
-  trackEvent({
-    event_type: 'click',
-    event_target: buttonName,
-    page,
-    details,
-  });
-}
+export const trackClick = (target: string, page: string, details: EventDetails = {}) => {
+  if (typeof window === 'undefined') return;
+  return trackEvent('click', page, target, details);
+};
 
-// Track form submissions
-export function trackFormSubmission(formName: string, page: string, formData: Record<string, unknown>) {
-  trackEvent({
-    event_type: 'form_submission',
-    event_target: formName,
-    page,
-    details: formData,
-  });
-}
+export const trackFormSubmission = (formId: string, page: string, details: EventDetails = {}) => {
+  if (typeof window === 'undefined') return;
+  return trackEvent('form_submission', page, formId, details);
+};
 
-// Track scroll depth
-export const trackScrollDepth = debounce((page: string, scrollPercentage: number) => {
-  if (scrollPercentage >= 50 && !localStorage.getItem(`scrollTracked_${page}`)) {
-    trackEvent({
-      event_type: 'scroll_depth',
-      event_target: '50_percent',
-      page,
-      details: { scrollPercentage },
-    });
-    localStorage.setItem(`scrollTracked_${page}`, 'true');
-  }
-}, 500);
+let scrollTimeout: NodeJS.Timeout;
 
-// Custom hook for scroll tracking
 export function useScrollTracking(page: string) {
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const scrollPercentage = (window.scrollY / scrollHeight) * 100;
-      trackScrollDepth(page, scrollPercentage);
-    };
+  if (typeof window === 'undefined') return;
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [page]);
-}
+  const handleScroll = () => {
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      const docHeight = Math.max(
+        document.documentElement.scrollHeight,
+        document.documentElement.offsetHeight,
+        document.documentElement.clientHeight
+      );
+      const windowHeight = window.innerHeight;
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollPercent = Math.round((scrollTop / (docHeight - windowHeight)) * 100);
 
-// Track social link clicks
-export function trackSocialClick(platform: string, page: string, details?: Record<string, unknown>) {
-  trackEvent({
-    event_type: 'social_click',
-    event_target: platform,
-    page,
-    details,
-  });
-}
+      trackEvent('scroll_depth', page, 'scroll', {
+        depth: scrollPercent,
+        viewport_height: windowHeight,
+        document_height: docHeight
+      });
+    }, 500);
+  };
 
-// Track blog post views
-export function trackBlogPostView(postId: string, postTitle: string) {
-  trackEvent({
-    event_type: 'blog_view',
-    event_target: postId,
-    page: '/blog',
-    details: { title: postTitle },
-  });
-}
-
-// Track team member profile views
-export function trackTeamMemberView(memberName: string) {
-  trackEvent({
-    event_type: 'team_member_view',
-    event_target: memberName,
-    page: '/team',
-  });
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  return () => {
+    clearTimeout(scrollTimeout);
+    window.removeEventListener('scroll', handleScroll);
+  };
 } 
