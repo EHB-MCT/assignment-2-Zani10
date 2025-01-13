@@ -58,7 +58,7 @@ A comprehensive analytics solution built with Next.js and Supabase for tracking 
 
 4. Initialize Supabase:
    - Create a new Supabase project
-   - Run the database schema from `progress.md`
+   - Run the database schema for users and user_interactions
    - Set up row level security policies
 
 5. Start the development server:
@@ -167,6 +167,21 @@ The dashboard (`src/app/dashboard/page.tsx`) features:
 3. Commit your changes
 4. Push to the branch
 5. Create a Pull Request
+
+## Sources
+
+Next.js:
+- https://nextjs.org/docs/
+   Dashboard:
+   - https://youtu.be/cBg6xA5C60s?si=WlkEi8cOSipZQRbf
+
+Database: 
+- https://youtu.be/yDJcdDa6la0?si=NwAapCsGZCcsfdf5
+
+Tailwind:
+- https://tailwindcss.com/docs/installation
+
+
 
 ## License
 

@@ -26,3 +26,7 @@
 
 ## 7
 - Dashboard - User journeys UI fixed
+- User authentication, user table Supabase, login page, signup page
+
+## 8
+- Fix user creation in supabase
